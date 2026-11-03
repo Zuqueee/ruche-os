@@ -36,13 +36,13 @@ three.
 
 ```mermaid
 flowchart LR
-  CU[ClickUp<br/>client roster] --> N8N
-  GHL[GoHighLevel<br/>CRM, 1 sub-account per client] --> N8N
-  HP[HotProspector<br/>dialer + recordings] --> N8N
-  META[Meta Ads] --> N8N
-  GADS[Google Ads / LSA] --> N8N
-  AI[Fathom · Deepgram · OpenAI] --> N8N
-  BANKS[8 banks and gateways<br/>BRL + USD] --> N8N
+  CU["ClickUp<br/>client roster"] --> N8N
+  GHL["GoHighLevel<br/>CRM, 1 sub-account per client"] --> N8N
+  HP["HotProspector<br/>dialer + recordings"] --> N8N
+  META["Meta Ads"] --> N8N
+  GADS["Google Ads / Local Services"] --> N8N
+  AI["Fathom · Deepgram · OpenAI"] --> N8N
+  BANKS["8 banks and gateways<br/>BRL + USD"] --> N8N
 
   N8N[["n8n — ~40 workflows<br/>queue mode, Docker Swarm"]] -->|RPC only, SECURITY DEFINER| PG
   PG[("Postgres / self-hosted Supabase<br/>30+ tables · ~60 views · RLS · pg_cron<br/>business rules live here")]
