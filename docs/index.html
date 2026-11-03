@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ruche OS — Engineering Case Studies | Lucas Zuque</title>
+<meta name="description" content="The internal operating system of a U.S. home-improvement lead-generation agency: one Postgres as the source of truth, ~40 automation workflows, an AI call-quality layer, a multi-currency finance pipeline, and a React console used by ten job roles.">
+<meta property="og:title" content="Ruche OS — Engineering Case Studies">
+<meta property="og:description" content="Postgres as source of truth, ~40 ingestion workflows, AI call auditing, a multi-currency finance pipeline, and a React console for ten roles. Nine case studies and the production lessons behind them.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1311;
+    --bg-2:#141A18;
+    --panel:#19211E;
+    --line:#26312D;
+    --line-2:#324039;
+    --ink:#EDF2EF;
+    --ink-2:#A7B5AE;
+    --ink-3:#73837C;
+    --accent:#6FD3A6;
+    --accent-2:#F2C14E;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --serif:'Fraunces',Georgia,serif;
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Consolas,monospace;
+    --wrap:1060px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#FBFAF7; --bg-2:#F4F2EC; --panel:#FFFFFF;
+      --line:#E2DED3; --line-2:#CFCABB;
+      --ink:#141A18; --ink-2:#4B5953; --ink-3:#7C8A83;
+      --accent:#1C7A56; --accent-2:#9A6B12;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--wrap); margin:0 auto; padding:0 28px}
+  a{color:inherit}
+  h1,h2,h3{font-family:var(--serif); font-weight:600; letter-spacing:-.015em; line-height:1.15; margin:0}
+  code,.mono{font-family:var(--mono); font-size:.88em}
+
+  /* ---------- header ---------- */
+  header{border-bottom:1px solid var(--line); background:var(--bg)}
+  .bar{display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px 0}
+  .brand{font-family:var(--serif); font-size:1.05rem; font-weight:700; letter-spacing:-.01em; text-decoration:none}
+  .brand span{color:var(--accent)}
+  nav{display:flex; gap:22px; flex-wrap:wrap}
+  nav a{font-size:.85rem; color:var(--ink-2); text-decoration:none; font-weight:500}
+  nav a:hover{color:var(--accent)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:72px 0 56px; border-bottom:1px solid var(--line)}
+  .eyebrow{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:22px
+  }
+  .hero h1{font-size:clamp(2.1rem,5.2vw,3.5rem); max-width:22ch}
+  .hero .lede{font-size:1.14rem; color:var(--ink-2); max-width:62ch; margin-top:26px}
+  .hero .meta{
+    margin-top:34px; display:flex; flex-wrap:wrap; gap:10px 8px;
+  }
+  .tag{
+    font-family:var(--mono); font-size:.74rem; padding:6px 11px;
+    border:1px solid var(--line-2); border-radius:100px; color:var(--ink-2)
+  }
+  .cta{display:flex; flex-wrap:wrap; gap:12px; margin-top:34px}
+  .btn{
+    display:inline-block; padding:12px 22px; border-radius:7px; text-decoration:none;
+    font-size:.92rem; font-weight:600; border:1px solid var(--line-2); color:var(--ink);
+    transition:.15s
+  }
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--bg)}
+  .btn:hover{transform:translateY(-1px)}
+
+  /* ---------- sections ---------- */
+  section{padding:64px 0; border-bottom:1px solid var(--line)}
+  .shead{margin-bottom:34px}
+  .shead .n{font-family:var(--mono); font-size:.74rem; color:var(--ink-3); letter-spacing:.1em}
+  .shead h2{font-size:clamp(1.5rem,3.2vw,2.05rem); margin-top:8px; max-width:34ch}
+  p{margin:0 0 18px}
+  .body{max-width:68ch; color:var(--ink-2)}
+  .body strong{color:var(--ink); font-weight:600}
+
+  /* ---------- numbers ---------- */
+  .nums{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  .num{background:var(--panel); padding:22px 20px}
+  .num b{display:block; font-family:var(--serif); font-size:1.75rem; font-weight:700; letter-spacing:-.02em}
+  .num span{display:block; font-size:.82rem; color:var(--ink-3); margin-top:5px; line-height:1.45}
+
+  /* ---------- diagram ---------- */
+  pre.diagram{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:24px; overflow-x:auto; font-family:var(--mono); font-size:.76rem;
+    line-height:1.7; color:var(--ink-2); margin:0
+  }
+  pre.diagram b{color:var(--accent); font-weight:500}
+
+  /* ---------- principles ---------- */
+  .rules{display:grid; gap:16px; margin-top:8px}
+  .rule{background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--accent); border-radius:8px; padding:20px 22px}
+  .rule h3{font-size:1.02rem; font-family:var(--sans); font-weight:600; margin-bottom:7px}
+  .rule p{font-size:.93rem; color:var(--ink-2); margin:0}
+
+  /* ---------- cases ---------- */
+  .cases{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px}
+  .case{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px;
+    text-decoration:none; display:flex; flex-direction:column; transition:.15s
+  }
+  .case:hover{border-color:var(--accent); transform:translateY(-2px)}
+  .case .cn{font-family:var(--mono); font-size:.72rem; color:var(--accent); letter-spacing:.1em}
+  .case h3{font-size:1.1rem; margin:10px 0 9px}
+  .case p{font-size:.9rem; color:var(--ink-2); margin:0}
+  .case .why{font-size:.84rem; color:var(--ink-3); margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+
+  /* ---------- stack ---------- */
+  .stack{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:26px}
+  .stack h3{font-family:var(--mono); font-size:.74rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:500; margin-bottom:10px}
+  .stack p{font-size:.9rem; color:var(--ink-2); margin:0}
+
+  /* ---------- note ---------- */
+  .note{background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:24px 26px}
+  .note p{font-size:.93rem; color:var(--ink-2)}
+  .note p:last-child{margin-bottom:0}
+
+  footer{padding:46px 0 60px}
+  footer .body{font-size:.88rem}
+  .flinks{display:flex; gap:20px; flex-wrap:wrap; margin-top:18px; font-size:.88rem}
+  .flinks a{color:var(--accent); text-decoration:none; font-weight:500}
+  @media (max-width:620px){
+    body{font-size:16px}
+    .hero{padding:48px 0 40px}
+    section{padding:48px 0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#top">Ruche<span>&nbsp;OS</span></a>
+    <nav>
+      <a href="#what">The system</a>
+      <a href="#cases">Case studies</a>
+      <a href="#lessons">Lessons</a>
+      <a href="#role">Role</a>
+      <a href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio">Repository</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero" id="top">
+  <div class="wrap">
+    <div class="eyebrow">Engineering case studies · 2026</div>
+    <h1>The operating system of a lead-generation agency.</h1>
+    <p class="lede">
+      One Postgres as the source of truth, about forty ingestion and automation workflows, an AI
+      call-quality layer, a multi-currency finance pipeline, and a React console that ten job roles
+      used every day — built by a two-person engineering team for an agency running paid media for
+      ~100 U.S. home-service contractors.
+    </p>
+    <div class="meta">
+      <span class="tag">PostgreSQL · RLS · RPC</span>
+      <span class="tag">n8n · Docker Swarm</span>
+      <span class="tag">React · TypeScript</span>
+      <span class="tag">LLM pipelines</span>
+      <span class="tag">Meta &amp; Google Ads APIs</span>
+      <span class="tag">Multi-currency finance</span>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="#cases">Read the case studies</a>
+      <a class="btn" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio">View on GitHub</a>
+    </div>
+  </div>
+</div>
+
+<section id="what">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">01 — The problem</div>
+      <h2>Paid per booked appointment, running on six disconnected tools.</h2>
+    </div>
+    <div class="body">
+      <p>
+        The agency ran paid media for roughly a hundred U.S. home-service contractors — roofing,
+        flooring, painting, remodeling, HVAC, solar — and was paid mostly <strong>per booked
+        appointment</strong>, not per lead. That billing model is the whole reason the system exists:
+        a cheap lead with an empty calendar is still a failure, so every number had to survive the
+        trip from ad click to confirmed appointment and back to an invoice.
+      </p>
+      <p>
+        What existed instead was six disconnected systems. The client roster in ClickUp, the CRM in
+        GoHighLevel with one sub-account per client, dials in a dialer, spend in Meta and Google Ads,
+        appointments in a spreadsheet, and the books across eight banks and gateways in two
+        currencies. Four internal teams each kept a private spreadsheet that disagreed with the other
+        three, and <em>“is client #437 profitable this month”</em> was a day of manual work.
+      </p>
+    </div>
+
+    <div style="margin:34px 0 34px">
+      <pre class="diagram">  ClickUp · GoHighLevel · HotProspector dialer
+  Meta Ads · Google Ads &amp; Local Services · Make
+  Fathom · Deepgram · OpenAI · 8 banks &amp; gateways
+            │
+            ▼
+  <b>n8n — ~40 workflows</b>   queue mode · Docker Swarm · 4 services
+            │
+            │   RPC only, SECURITY DEFINER — never a direct table write
+            ▼
+  <b>PostgreSQL (self-hosted Supabase)</b>
+  30+ tables · ~60 views · RLS on every table · triggers · pg_cron
+  <i>the business rules live here</i>
+            │
+            ├──────────────────────────┐
+            ▼                          ▼
+  <b>Ruche OS console</b>            <b>CLAUD.IA</b>
+  React + TS · 1,347 commits     natural-language queries
+  10 roles · per-page RBAC       over registered datasets</pre>
+    </div>
+
+    <div class="nums">
+      <div class="num"><b>1,347</b><span>commits in the console · 545 TS/TSX files · ~165k lines</span></div>
+      <div class="num"><b>~40</b><span>n8n workflows, 4 services on a 3.7&nbsp;GiB host</span></div>
+      <div class="num"><b>~60</b><span>Postgres views over 30+ tables · 109 migrations</span></div>
+      <div class="num"><b>10</b><span>roles with restrictive RLS and per-user overrides</span></div>
+      <div class="num"><b>~100</b><span>active contractor accounts across U.S. trades</span></div>
+      <div class="num"><b>10</b><span>financial sources, two currencies, USD reporting</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">02 — Architecture</div>
+      <h2>Three rules, and every incident came from breaking one.</h2>
+    </div>
+    <div class="rules">
+      <div class="rule">
+        <h3>The database is the source of truth — not the SaaS tools, not the front end.</h3>
+        <p>Churn, attribution freezing and lifecycle transitions are triggers and RPCs in Postgres. Four teams read the same numbers and each had an incentive to define them favourably; a definition that lives in a view gives the same answer in the console, in a workflow, in the query agent and in a reconciliation script.</p>
+      </div>
+      <div class="rule">
+        <h3>No external system writes to a table directly.</h3>
+        <p>Everything goes through <code>SECURITY DEFINER</code> functions. Row-level security blocks anonymous writes outright and the anon key is public by design — it ships in the browser bundle. The practical win: the contract nine workflows depend on is a function signature, not a table shape.</p>
+      </div>
+      <div class="rule">
+        <h3>The front end decides what to <em>show</em>; the database decides what is <em>allowed</em>.</h3>
+        <p>Every sensitive action is re-checked inside the RPC. Page-level access control is a UI convenience — the code says so explicitly, because the next person to read it will assume otherwise. The real boundary is RLS.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cases">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">03 — Case studies</div>
+      <h2>Nine systems, and what was actually hard about each.</h2>
+    </div>
+    <div class="cases">
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/01-platform.md">
+        <div class="cn">01</div>
+        <h3>The platform</h3>
+        <p>Postgres as source of truth, ten-role RLS, and a two-way sync with a spreadsheet-shaped SaaS that stayed the system of record.</p>
+        <div class="why">Field-ID mapping that survived a rename · upserts that never blank a field · per-field locks so humans beat robots</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/02-ai-call-auditing.md">
+        <div class="cn">02</div>
+        <h3>AI call auditing</h3>
+        <p>Every recorded sales call transcribed and scored against a weighted rubric, surfaced to the manager who has to coach the setter.</p>
+        <div class="why">The model judges, code counts · calibration rules written from real disagreements with the sales manager</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/03-finance-pipeline.md">
+        <div class="cn">03</div>
+        <h3>Finance pipeline</h3>
+        <p>Eight banks and gateways, two currencies, one append-only journal, accrual periods separate from cash dates.</p>
+        <div class="why">Found the baseline spreadsheet's own rounding corruption · FX taken from the processor, not the central bank</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/04-paid-media-pipeline.md">
+        <div class="cn">04</div>
+        <h3>Paid-media pipeline</h3>
+        <p>Ad-level Meta, Google Ads and Local Services spend, daily, per client, joined to the appointments that got booked.</p>
+        <div class="why">A rolling window instead of a cursor, because platforms restate · a metric that is intentionally double-counted, and why</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/05-campaign-engine.md">
+        <div class="cn">05</div>
+        <h3>Campaign creation engine</h3>
+        <p>A form that turns a Drive folder of creative into a built, paused Meta campaign — resumable halfway through.</p>
+        <div class="why">Idempotency at three levels · retryable vs terminal failure as a product decision, not error handling</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/06-conversion-tracking.md">
+        <div class="cn">06</div>
+        <h3>Conversion tracking</h3>
+        <p>Server-side Conversions API keyed on <em>booked appointment</em> — the latest-stage event that still lands inside the attribution window.</p>
+        <div class="why">One reusable workflow for every client · onboarding reduced to a database row and a webhook</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/07-claudia.md">
+        <div class="cn">07</div>
+        <h3>CLAUD.IA</h3>
+        <p>Ask the database a question in plain language, over registered datasets, on a small model.</p>
+        <div class="why">The catalog goes in the prompt, not behind a tool call · a filtered zero is not “there are none”</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/08-resilience.md">
+        <div class="cn">08</div>
+        <h3>Infrastructure resilience</h3>
+        <p>A stateful engine that would not reconnect, on a network that flapped up to sixty times a day.</p>
+        <div class="why">Recovery in ~3 min, zero inbound webhooks lost · two sync workflows held 76% of all stored execution data</div>
+      </a>
+
+      <a class="case" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/cases/09-cap-ruche.md">
+        <div class="cn">09</div>
+        <h3>Cap Ruche video editor</h3>
+        <p>A browser 9:16 editor for ad creative: 30&nbsp;s of 1080×1920 exported in 4.7&nbsp;s on a laptop GPU.</p>
+        <div class="why">Integer-microsecond edit core · the audio clock is the clock · an E2E test that parses the exported MP4</div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<section id="lessons">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">04 — Lessons</div>
+      <h2>Almost nothing failed loudly.</h2>
+    </div>
+    <div class="body">
+      <p>
+        The dangerous failures in this system returned HTTP 200, logged success, and produced a number
+        that was plausible and wrong — and a plausible wrong number survives review, gets presented to
+        a client, and becomes the basis of a decision. Most of the engineering effort went into making
+        failure visible.
+      </p>
+      <p>
+        A sample of what is written up in full: PostgREST truncating silently at 1,000 rows, and the
+        four unrelated-looking incidents it caused. A dedup query that hit that ceiling and
+        regenerated the same 65 records every five minutes — <strong>$6.77 a day</strong>, logging
+        success. A view without <code>security_invoker</code> ignoring row-level security entirely. A
+        dunning ladder that ran at 08:00 Eastern, found every Eastern client outside the permitted
+        contact window, and silently never retried. Date-only imports stored at midnight UTC that
+        moved ten appointments from June into May. A pagination option misspelled in a way that made
+        a sync process 100 of 319 clients with no error anywhere. An index 16× larger than the data
+        it indexed.
+      </p>
+      <p>
+        And the ones that are not about code: a migration repository that was an honest log of intent
+        and a useless description of state; a system with no <code>tenant_id</code> that was right to
+        not have one and should have written that down as a decision; and secrets that ended up in
+        three habitats because each shortcut was defensible in a different week.
+      </p>
+    </div>
+    <div class="cta">
+      <a class="btn" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/ENGINEERING-NOTES.md">Read the engineering notes</a>
+      <a class="btn" href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/ARCHITECTURE.md">Read the architecture</a>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">05 — Stack</div>
+      <h2>What it was built with.</h2>
+    </div>
+    <div class="stack">
+      <div>
+        <h3>Data</h3>
+        <p>PostgreSQL (self-hosted Supabase), PostgREST, row-level security, <code>SECURITY DEFINER</code> functions, materialized views, <code>pg_cron</code></p>
+      </div>
+      <div>
+        <h3>Automation</h3>
+        <p>n8n 1.121 in queue mode with Redis, Docker Swarm, Traefik, Portainer, systemd timers</p>
+      </div>
+      <div>
+        <h3>Front end</h3>
+        <p>React, TypeScript, Vite, TanStack Router and Query, Tailwind v4, shadcn/ui, Recharts</p>
+      </div>
+      <div>
+        <h3>AI</h3>
+        <p>OpenAI with strict function calling, Anthropic Claude, Deepgram nova-3 speech-to-text, Whisper word-level timestamps</p>
+      </div>
+      <div>
+        <h3>Integrations</h3>
+        <p>ClickUp, GoHighLevel, HotProspector, Meta Marketing &amp; Conversions APIs, Google Ads (GAQL), Google Local Services, Stripe, Asaas, Plaid, Make, Fathom, WhatsApp</p>
+      </div>
+      <div>
+        <h3>Media</h3>
+        <p>Meta Ads, Google Ads, Google Local Service Ads, server-side conversion tracking, creative production tooling</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="role">
+  <div class="wrap">
+    <div class="shead">
+      <div class="n">06 — Role</div>
+      <h2>A two-person engineering team.</h2>
+    </div>
+    <div class="body">
+      <p>
+        <strong>Lucas Zuque</strong> — architecture and data modelling; the Postgres layer (schema,
+        RLS, RPCs, triggers, views, migrations); the AI layer (audit rubric and calibration,
+        booking-message generation, objection classification, CLAUD.IA); the finance pipeline end to
+        end; paid-media ingestion and the campaign creation engine; infrastructure resilience; and
+        the engineering documentation that let anyone else work on the system.
+      </p>
+      <p>
+        <strong>Letícia R.</strong> — platform engineering, the console, and much of the ClickUp and
+        GoHighLevel integration surface.
+      </p>
+      <p>
+        Media buying, customer success and call-centre work was done by the agency's operating teams;
+        the OS is what they ran on. The audit rubric and the daily-report tiers were calibrated
+        against the sales manager's own judgment rather than invented in isolation.
+      </p>
+    </div>
+
+    <div class="note" style="margin-top:30px">
+      <p><strong>On what is published here.</strong> No company code or data is included. The
+      implementation stays in the company's private repositories, and the production database held
+      client business data and recorded calls with U.S. consumers, which falls under TCPA and state
+      privacy law. Client companies are referred to by trade and state. Figures are the ones measured
+      in production.</p>
+      <p>The agency closed in December 2026 and released these systems for portfolio use. Any
+      demonstration runs on an empty schema with synthetic seed data.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="body">
+      <p>Ruche OS · built 2026 · decommissioned December 2026. Written up with the company's permission.</p>
+    </div>
+    <div class="flinks">
+      <a href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio">Repository</a>
+      <a href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/ENGINEERING-NOTES.md">Engineering notes</a>
+      <a href="https://github.com/REPLACE_GH_USER/ruche-os-portfolio/blob/main/ARCHITECTURE.md">Architecture</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
